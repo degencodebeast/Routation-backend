@@ -8,13 +8,17 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
+//import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract NFToken is ERC721URIStorage, IDapp {
     address public owner;
     IGateway public gatewayContract;
 
-    mapping(string => uint8) private _hashes;
+    //Cross-chain NFT Marketplace Allow buying any NFT from any chain and selling 
+    //any NFT on any chain. The markets should be focussed on natively cross-chain NFTs.
+
+    //mapping(string => uint8) private _hashes;
     mapping(uint256 => uint8) private _tokenIds;
 
     // chain type + chain id => address of our contract in string format
@@ -26,9 +30,16 @@ contract NFToken is ERC721URIStorage, IDapp {
     struct TransferParams {
         uint256 nftId;
         //uint256[] nftAmounts;
-        bytes nftData;
+        //bytes nftData;
         bytes recipient;
+        string uri;
     }
+
+    
+//   struct TransferTemp{
+//     uint256 nftId;
+//     string uri;
+//   }
 
     constructor(
         string memory _name,
@@ -44,26 +55,40 @@ contract NFToken is ERC721URIStorage, IDapp {
 
         gatewayContract.setDappMetadata(feePayerAddress);
     }
-
-    function mint(uint256 tokenId) external {
-        require(_tokenIds[tokenId] != 1, "token ID already exists");
-        _tokenIds[tokenId] = 1;
-        _safeMint(_msgSender(), tokenId);
+    
+function publicMint(address to, uint256 tokenId, string memory uri) public 
+    {
+      // require(msg.sender == owner, "only owner");
+        _safeMint(to, tokenId);
+        _setTokenURI(tokenId, uri);
     }
 
-    function mintWithMetadata(
+    function safeMint(
+        address to,
         uint256 tokenId,
-        string memory assetHash,
+        //string memory assetHash,
         string memory tokenURI
     ) external {
+        require(msg.sender == owner, "only owner");
+
         require(_tokenIds[tokenId] != 1, "token ID already exists");
         _tokenIds[tokenId] = 1;
 
         require(_hashes[assetHash] != 1, "hash already exists");
         _hashes[assetHash] = 1;
 
-        _safeMint(_msgSender(), tokenId);
+        //_safeMint(_msgSender(), tokenId);
+        _safeMint(to, tokenId);
         _setTokenURI(tokenId, tokenURI);
+    }
+
+      function tokenURI(uint256 tokenId)
+        public
+        view
+        override(ERC721URIStorage, ERC721)
+        returns (string memory)
+    {
+        return super.tokenURI(tokenId);
     }
 
     /// @notice function to set the address of our NFT contracts on different chains.
@@ -85,6 +110,10 @@ contract NFToken is ERC721URIStorage, IDapp {
         gatewayContract = IGateway(gateway);
     }
 
+     function _burn(uint256 tokenId) internal override(ERC721URIStorage, ERC721) {
+        super._burn(tokenId);
+    }
+
     /// @notice function to set the fee payer address on Router Chain.
     /// @param feePayerAddress address of the fee payer on Router Chain.
     function setDappMetadata(string memory feePayerAddress) external {
@@ -98,7 +127,8 @@ contract NFToken is ERC721URIStorage, IDapp {
     /// @param requestMetadata abi-encoded metadata according to source and destination chains
     function transferCrossChain(
         string calldata destChainId,
-        TransferParams calldata transferParams,
+        //TransferParams calldata transferParams,
+        uint256 tokenId
         bytes calldata requestMetadata
     ) public payable {
         require(
@@ -107,11 +137,13 @@ contract NFToken is ERC721URIStorage, IDapp {
             "contract on dest not set"
         );
 
+      require(
+      _ownerOf(transferParams.nftId) == msg.sender,
+      "caller is not the owner"
+    );
         // burning the NFTs from the address of the user calling _burnBatch function
-        _burnBatch(
-            msg.sender,
-            transferParams.nftIds,
-            transferParams.nftAmounts
+        _burn(
+            transferParams.nftId
         );
 
         // sending the transfer params struct to the destination chain as payload.
@@ -160,24 +192,29 @@ contract NFToken is ERC721URIStorage, IDapp {
     /// @param packet the payload sent by the source chain contract when the request was created.
     /// @param srcChainId chain ID of the source chain in string.
     function iReceive(
-        string memory, // requestSender,
+        string memory requestSender,
         bytes memory packet,
         string memory srcChainId
     ) external override returns (bytes memory) {
         require(msg.sender == address(gatewayContract), "only gateway");
+        require(
+      keccak256(bytes(ourContractOnChains[srcChainId])) ==
+        keccak256(bytes(requestSender))
+    );
         // decoding our payload
         TransferParams memory transferParams = abi.decode(
             packet,
             (TransferParams)
         );
-        _mintBatch(
+        safeMint(
             toAddress(transferParams.recipient),
-            transferParams.nftIds,
-            transferParams.nftAmounts,
-            transferParams.nftData
+            transferParams.nftId,
+            transferParams.uri
         );
-
-        return abi.encode(srcChainId);
+        
+        //return abi.encode(srcChainId);
+        
+    return "";
     }
 
     /// @notice function to handle the acknowledgement received from the destination chain
