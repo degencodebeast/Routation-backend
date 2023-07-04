@@ -21,6 +21,8 @@ contract NFToken is ERC721URIStorage, IDapp {
     //chain id to nft contract
     mapping(string => string) public ourContractOnChains;
 
+    // transfer params struct where we specify which NFTs should be transferred to
+    // the destination chain and to which address
     struct TransferParams {
         uint256 nftId;
         //uint256[] nftAmounts;
@@ -30,15 +32,15 @@ contract NFToken is ERC721URIStorage, IDapp {
 
     constructor(
         string memory _name,
-        sring memory _symbol,
+        string memory _symbol,
         address payable gatewayAddress,
         string memory feePayerAddress
     ) ERC721(_name, _symbol) {
         gatewayContract = IGateway(gatewayAddress);
         owner = msg.sender;
 
-        // minting ourselves some NFTs so that we can test out the contracts
-        _mint(msg.sender, 1, 10, "");
+        // // minting ourselves some NFTs so that we can test out the contracts
+        // _mint(msg.sender, 1, 10, "");
 
         gatewayContract.setDappMetadata(feePayerAddress);
     }
@@ -64,11 +66,15 @@ contract NFToken is ERC721URIStorage, IDapp {
         _setTokenURI(tokenId, tokenURI);
     }
 
+    /// @notice function to set the address of our NFT contracts on different chains.
+    /// This will help in access control when a cross-chain request is received.
+    /// @param chainId chain Id of the destination chain in string.
+    /// @param contractAddress address of the NFT contract on the destination chain.
     function setContractOnChain(
         string calldata chainId,
         string calldata contractAddress
     ) external {
-        require(msg.sender == owner, "only admin");
+        require(msg.sender == owner, "only owner");
         ourContractOnChains[chainId] = contractAddress;
     }
 
