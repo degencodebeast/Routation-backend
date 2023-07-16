@@ -92,14 +92,14 @@ const config: HardhatUserConfig = {
     enabled: process.env.REPORT_GAS !== undefined,
     currency: "USD",
   },
-  etherscan: {
-    apiKey: {
-      polygon: process.env.POLYGON_ETHERSCAN_KEY,
-      polygonMumbai: process.env.POLYGON_KEY,
-      bsc: process.env.BSC_KEY,
-      opera: process.env.FTMSCAN_KEY,
-    },
-  },
+  // etherscan: {
+  //   apiKey: {
+  //     polygon: process.env.POLYGON_ETHERSCAN_KEY,
+  //     polygonMumbai: process.env.POLYGON_KEY,
+  //     bsc: process.env.BSC_KEY,
+  //     opera: process.env.FTMSCAN_KEY,
+  //   },
+  // },
 };
 
 export default config;

@@ -16,7 +16,7 @@ contract NFToken is ERC721URIStorage, IDapp {
     IGateway public gatewayContract;
 
     //Cross-chain NFT Marketplace Allow buying any NFT from any chain and selling 
-    //any NFT on any chain. The markets should be focussed on natively cross-chain NFTs.
+    //any NFT on any chain. The markets should be focused on natively cross-chain NFTs.
 
     //mapping(string => uint8) private _hashes;
     mapping(uint256 => uint8) private _tokenIds;
@@ -24,6 +24,9 @@ contract NFToken is ERC721URIStorage, IDapp {
     // chain type + chain id => address of our contract in string format
     //chain id to nft contract
     mapping(string => string) public ourContractOnChains;
+    
+  // gas limit required to handle cross-chain request on the destination chain
+  uint64 public _destGasLimit;
 
     // transfer params struct where we specify which NFTs should be transferred to
     // the destination chain and to which address
@@ -71,11 +74,11 @@ function publicMint(address to, uint256 tokenId, string memory uri) public
     ) external {
         require(msg.sender == owner, "only owner");
 
-        require(_tokenIds[tokenId] != 1, "token ID already exists");
-        _tokenIds[tokenId] = 1;
+        // require(_tokenIds[tokenId] != 1, "token ID already exists");
+        // _tokenIds[tokenId] = 1;
 
-        require(_hashes[assetHash] != 1, "hash already exists");
-        _hashes[assetHash] = 1;
+        // require(_hashes[assetHash] != 1, "hash already exists");
+        // _hashes[assetHash] = 1;
 
         //_safeMint(_msgSender(), tokenId);
         _safeMint(to, tokenId);
@@ -96,11 +99,17 @@ function publicMint(address to, uint256 tokenId, string memory uri) public
     /// @param chainId chain Id of the destination chain in string.
     /// @param contractAddress address of the NFT contract on the destination chain.
     function setContractOnChain(
-        string calldata chainId,
-        string calldata contractAddress
+        string[] calldata chainIds,
+        string[] calldata contractAddresses
     ) external {
         require(msg.sender == owner, "only owner");
         ourContractOnChains[chainId] = contractAddress;
+
+        require(chainIds.length == contractAddresses.length, "chainIds and contractAddresses arrays length mismatch");
+
+         for (uint256 i = 0; i < chainIds.length; i++) {
+      ourContractOnChains[chainIds[i]] = contractAddresses[i];
+    }
     }
 
     /// @notice function to set the Router Gateway Contract.

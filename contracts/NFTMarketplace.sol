@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "@routerprotocol/evm-gateway-contracts@1.1.11/contracts/IDapp.sol";
 import "@routerprotocol/evm-gateway-contracts@1.1.11/contracts/IGateway.sol";
+import "./INFT.sol";
 
 error PriceNotMet(address nftAddress, uint256 tokenId, uint256 price);
 error ItemNotForSale(address nftAddress, uint256 tokenId);
@@ -19,10 +20,10 @@ error NotOwner();
 error NotApprovedForMarketplace();
 error PriceMustBeAboveZero();
 
-contract NFTMarketplace is ERC721URIStorage, ReentrancyGuard {
-    using Counters for Counters.Counter;
-    Counters.Counter private _tokenIds;
-    Counters.Counter private _itemsSold;
+contract NFTMarketplace is ERC721URIStorage, ReentrancyGuard, IDapp   {
+    // using Counters for Counters.Counter;
+    // Counters.Counter private _tokenIds;
+    // Counters.Counter private _itemsSold;
 
       struct Listing {
         uint256 price;
@@ -111,6 +112,7 @@ contract NFTMarketplace is ERC721URIStorage, ReentrancyGuard {
      * @param price sale price for each item
      */
 
+      //crosslist item
       function listItem(
         address nftAddress,
         uint256 tokenId,
@@ -131,11 +133,19 @@ contract NFTMarketplace is ERC721URIStorage, ReentrancyGuard {
         emit ItemListed(msg.sender, nftAddress, tokenId, price);
     }
 
+    //function to mint an nft to your address on another chain
+    function crossChainMint(string calldata destChainId,
+        address nftAddress,
+        string calldata tokenURI) external payable {
+
+        }
+
     /*
      * @notice Method for cancelling listing
      * @param nftAddress Address of NFT contract
      * @param tokenId Token ID of NFT
      */
+    //cross delist
     function cancelListing(address nftAddress, uint256 tokenId)
         external
         isOwner(nftAddress, tokenId, msg.sender)
@@ -154,6 +164,8 @@ contract NFTMarketplace is ERC721URIStorage, ReentrancyGuard {
      * @param nftAddress Address of NFT contract
      * @param tokenId Token ID of NFT
      */
+
+    //cross purchase
     function buyItem(address nftAddress, uint256 tokenId)
         external
         payable
@@ -183,6 +195,7 @@ contract NFTMarketplace is ERC721URIStorage, ReentrancyGuard {
      * @param tokenId Token ID of NFT
      * @param newPrice Price in Wei of the item
      */
+    //cross update listing
     function updateListing(
         address nftAddress,
         uint256 tokenId,
@@ -205,6 +218,7 @@ contract NFTMarketplace is ERC721URIStorage, ReentrancyGuard {
     /*
      * @notice Method for withdrawing proceeds from sales
      */
+    //same chain function
     function withdrawProceeds() external {
         uint256 proceeds = s_proceeds[msg.sender];
         if (proceeds <= 0) {
@@ -230,7 +244,5 @@ contract NFTMarketplace is ERC721URIStorage, ReentrancyGuard {
     function getProceeds(address seller) external view returns (uint256) {
         return s_proceeds[seller];
     }
-}
-
 
 }
