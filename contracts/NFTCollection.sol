@@ -11,7 +11,18 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 //import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract NFToken is ERC721URIStorage, IDapp {
+contract NFTCollection is ERC721URIStorage, IDapp {
+
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIds;
+    uint256 public collectionRoyalty;
+    address collectionOwner;
+
+    event TokenCreated(
+    string ipfsURL,
+    uint256 tokenId
+    );
+
     address public owner;
     IGateway public gatewayContract;
 
@@ -48,8 +59,14 @@ contract NFToken is ERC721URIStorage, IDapp {
         string memory _name,
         string memory _symbol,
         address payable gatewayAddress,
-        string memory feePayerAddress
+        string memory feePayerAddress,
+        uint256 _royalty,
+        address _collectionOwner
     ) ERC721(_name, _symbol) {
+        require(_royalty < 10000, "Royalty should be less than 10%");
+        collectionRoyalty = _royalty;
+        collectionOwner = _collectionOwner;
+        
         gatewayContract = IGateway(gatewayAddress);
         owner = msg.sender;
 
@@ -58,31 +75,47 @@ contract NFToken is ERC721URIStorage, IDapp {
 
         gatewayContract.setDappMetadata(feePayerAddress);
     }
-    
-function publicMint(address to, uint256 tokenId, string memory uri) public 
-    {
-      // require(msg.sender == owner, "only owner");
-        _safeMint(to, tokenId);
-        _setTokenURI(tokenId, uri);
+
+     function get_royalty() public view returns (uint256) {
+        return collectionRoyalty;
     }
 
-    function safeMint(
-        address to,
-        uint256 tokenId,
+    function get_collection_owner() public view returns (address) {
+        return collectionOwner;
+    }
+    
+// function publicMint(address to, uint256 tokenId, string memory uri) public 
+//     {
+//       // require(msg.sender == owner, "only owner");
+//         _safeMint(to, tokenId);
+//         _setTokenURI(tokenId, uri);
+//     }
+
+    function createToken(
+        // address to,
+        // uint256 tokenId,
         //string memory assetHash,
         string memory tokenURI
     ) external {
         require(msg.sender == owner, "only owner");
 
-        // require(_tokenIds[tokenId] != 1, "token ID already exists");
-        // _tokenIds[tokenId] = 1;
+        // _safeMint(to, tokenId);
+        // _setTokenURI(tokenId, tokenURI);
+        uint256 newTokenId = _tokenIds.current();
+        _safeMint(msg.sender, newTokenId);
+        _setTokenURI(newTokenId, tokenURI);
+        _tokenIds.increment();
 
-        // require(_hashes[assetHash] != 1, "hash already exists");
-        // _hashes[assetHash] = 1;
+        emit TokenCreated(tokenURI, newTokenId);
+        return newTokenId;
+    }
 
-        //_safeMint(_msgSender(), tokenId);
-        _safeMint(to, tokenId);
-        _setTokenURI(tokenId, tokenURI);
+     function mintTo(address receiver, string memory _tokenURI) external returns(uint) {
+        _nextTokenId.increment();
+        uint currentId = _nextTokenId.current();
+        _safeMint(receiver, currentId);
+        _setTokenURI(currentId, _tokenURI);
+        return(currentId);
     }
 
       function tokenURI(uint256 tokenId)
@@ -132,12 +165,14 @@ function publicMint(address to, uint256 tokenId, string memory uri) public
 
     /// @notice function to generate a cross-chain NFT transfer request.
     /// @param destChainId chain ID of the destination chain in string.
-    /// @param transferParams transfer params struct.
+    /// @param _tokenId nft token ID.
+     /// @param _recipient recipient of token ID on destination chain.
     /// @param requestMetadata abi-encoded metadata according to source and destination chains
     function transferCrossChain(
         string calldata destChainId,
         //TransferParams calldata transferParams,
-        uint256 tokenId
+        uint256 _tokenId,
+        address _recipient,
         bytes calldata requestMetadata
     ) public payable {
         require(
@@ -150,6 +185,10 @@ function publicMint(address to, uint256 tokenId, string memory uri) public
       _ownerOf(transferParams.nftId) == msg.sender,
       "caller is not the owner"
     );
+    TransferParams memory transferParams;
+    transferParams.nftId = _tokenId;
+    transferParams.recipient = toBytes(_recipient);
+    transferParams.uri = super.tokenURI(tokenId);
         // burning the NFTs from the address of the user calling _burnBatch function
         _burn(
             transferParams.nftId
@@ -252,4 +291,6 @@ function publicMint(address to, uint256 tokenId, string memory uri) public
         }
         addr = address(srcTokenAddress);
     }
+
+   
 }

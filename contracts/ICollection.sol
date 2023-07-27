@@ -7,7 +7,7 @@ pragma solidity ^0.8.4;
 
 // import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-interface INFT {
+interface ICollection {
     // empty because we're not concerned with internal details
     function ownerOf(uint256 tokenId) external view returns (address);
 
@@ -29,7 +29,7 @@ interface INFT {
         bytes memory requestMetadata
     ) external payable;
 
-    function safeMint(address to, uint256 tokenId, string memory tokenURI) external;
+    function mintTo(address to, string memory tokenURI) external;
 
     function _burn(uint256 tokenId) external;
 }
