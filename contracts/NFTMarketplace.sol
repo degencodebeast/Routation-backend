@@ -14,7 +14,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 import "@routerprotocol/evm-gateway-contracts@1.1.11/contracts/IDapp.sol";
 import "@routerprotocol/evm-gateway-contracts@1.1.11/contracts/IGateway.sol";
-//import "./INFT.sol";
+import "./ICollection.sol";
 
 // error PriceNotMet(address nftAddress, uint256 tokenId, uint256 price);
 // error ItemNotForSale(address nftAddress, uint256 tokenId);
@@ -47,17 +47,17 @@ contract NFTMarketplace is IDapp {
     uint64 public _destGasLimit;
 
        bytes4 immutable CROSS_CHAIN_LIST_SELECTOR =
-        bytes4(keccak256("listToken(uint256)")); //1 - requestCollection
+        bytes4(keccak256("listToken(uint256, uint256, address)"));
     bytes4 immutable CROSS_CHAIN_DELIST_SELECTOR =
-        bytes4(keccak256("cancelListing(uint256, uint256, string)")); //0 - crossChainPropose
+        bytes4(keccak256("cancelListing(address, uint256)")); e
     bytes4 immutable CROSS_CHAIN_PURCHASE_SELECTOR =
         bytes4(
             keccak256(
-                "executeSale(uint256, uint256, uint256, uint256)"
+                "executeSale(uint256, address)"
             )
-        ); // - onReceiveSpokeVotingData
+        ); 
     bytes4 immutable CROSS_CHAIN_MINT_SELECTOR =
-        bytes4(keccak256("mintTo(uint256)"));
+        bytes4(keccak256("_mintOnRemote(address, string, address)"));
 
     struct ListedToken {
         uint256 nftId;
@@ -260,6 +260,10 @@ contract NFTMarketplace is IDapp {
         return listPrice;
     }
 
+    function _mintOnRemote(address _recipient, string memory _tokenURI, address _nftAddress) internal returns (uint) {
+        ICollection(_nftAddress).mintTo(_recipient, _nftAddress);
+    }
+
     function getLatestIdToListedToken()
         public
         view
@@ -309,13 +313,36 @@ contract NFTMarketplace is IDapp {
 
     }
 
-    function crosschainMint() public payable {
+    function crosschainMint(
+        string calldata destChainId,
+        string calldata recipient,
+        string memory _tokenURI
+        bytes calldata requestMetaData
+    ) public payable {
+        require(
+            keccak256(abi.encodePacked(ourContractOnChains[destChainId])) !=
+                keccak256(abi.encodePacked("")),
+            "contract on dest not set"
+        ); 
+    bytes memory packet = abi.encode(recipient, _tokenURI);
+    bytes memory requestPacket = abi.encode(
+            ourContractOnChains[destChainId],
+            packet
+        );
 
+       gatewayContract.iSend{value: msg.value}(
+            1,
+            0,
+            string(""),
+            destChainId,
+            requestMetadata,
+            requestPacket
+        );
     }
 
     function crossChainTransferNft(string calldata destChainId,
         uint256 tokenId,
-        Collection collection,
+        NFTCollection collectionAddr,
         string calldata recipient,
         bytes calldata requestMetaData) public payable {
          require(
@@ -325,10 +352,10 @@ contract NFTMarketplace is IDapp {
         );
 
           require(
-      collection.ownerOf(tokenId) == msg.sender,
+      collectionAddr.ownerOf(tokenId) == msg.sender,
       "caller is not the owner"
     ); 
-      collection.transferCrossChain(destChainId, tokenId, recipient, requestMetaData);
+      collectionAddr.transferCrossChain(destChainId, tokenId, recipient, requestMetaData);
     }
 
     /// @notice function to set the Router Gateway Contract.
@@ -460,222 +487,3 @@ contract NFTMarketplace is IDapp {
 
     receive() external payable {}
 }
-
-//     struct Listing {
-//         uint256 price;
-//         address seller;
-//     }
-
-//     event ItemListed(
-//         address indexed seller,
-//         address indexed nftAddress,
-//         uint256 indexed tokenId,
-//         uint256 price
-//     );
-
-//     event ItemCanceled(
-//         address indexed seller,
-//         address indexed nftAddress,
-//         uint256 indexed tokenId
-//     );
-
-//     event ItemBought(
-//         address indexed buyer,
-//         address indexed nftAddress,
-//         uint256 indexed tokenId,
-//         uint256 price
-//     );
-
-//     mapping(address => mapping(uint256 => Listing)) private s_listings;
-//     mapping(address => uint256) private s_proceeds
-
-//         modifier notListed(
-//         address nftAddress,
-//         uint256 tokenId
-//     ) {
-//         Listing memory listing = s_listings[nftAddress][tokenId];
-//         if (listing.price > 0) {
-//             revert AlreadyListed(nftAddress, tokenId);
-//         }
-//         _;
-//     }
-
-//     modifier isListed(address nftAddress, uint256 tokenId) {
-//         Listing memory listing = s_listings[nftAddress][tokenId];
-//         if (listing.price <= 0) {
-//             revert NotListed(nftAddress, tokenId);
-//         }
-//         _;
-//     }
-
-//     modifier isOwner(
-//         address nftAddress,
-//         uint256 tokenId,
-//         address spender
-//     ) {
-//         IERC721 nft = IERC721(nftAddress);
-//         address owner = nft.ownerOf(tokenId);
-//         if (spender != owner) {
-//             revert NotOwner();
-//         }
-//         _;
-//     }
-
-//     // IsNotOwner Modifier - Nft Owner can't buy his/her NFT
-//     // Modifies buyItem function
-//     // Owner should only list, cancel listing or update listing
-//     /* modifier isNotOwner(
-//         address nftAddress,
-//         uint256 tokenId,
-//         address spender
-//     ) {
-//         IERC721 nft = IERC721(nftAddress);
-//         address owner = nft.ownerOf(tokenId);
-//         if (spender == owner) {
-//             revert IsNotOwner();
-//         }
-//         _;
-//     } */
-
-//     /////////////////////
-//     // Main Functions //
-//     /////////////////////
-//     /*
-//      * @notice Method for listing NFT
-//      * @param nftAddress Address of NFT contract
-//      * @param tokenId Token ID of NFT
-//      * @param price sale price for each item
-//      */
-
-//       //crosslist item
-//       function listItem(
-//         address nftAddress,
-//         uint256 tokenId,
-//         uint256 price
-//     )
-//         external
-//         notListed(nftAddress, tokenId)
-//         isOwner(nftAddress, tokenId, msg.sender)
-//     {
-//         if (price <= 0) {
-//             revert PriceMustBeAboveZero();
-//         }
-//         IERC721 nft = IERC721(nftAddress);
-//         if (nft.getApproved(tokenId) != address(this)) {
-//             revert NotApprovedForMarketplace();
-//         }
-//         s_listings[nftAddress][tokenId] = Listing(price, msg.sender);
-//         emit ItemListed(msg.sender, nftAddress, tokenId, price);
-//     }
-
-//     //function to mint an nft to your address on another chain
-//     function crossChainMint(string calldata destChainId,
-//         address nftAddress,
-//         string calldata tokenURI) external payable {
-
-//         }
-
-//     /*
-//      * @notice Method for cancelling listing
-//      * @param nftAddress Address of NFT contract
-//      * @param tokenId Token ID of NFT
-//      */
-//     //cross delist
-//     function cancelListing(address nftAddress, uint256 tokenId)
-//         external
-//         isOwner(nftAddress, tokenId, msg.sender)
-//         isListed(nftAddress, tokenId)
-//     {
-//         delete (s_listings[nftAddress][tokenId]);
-//         emit ItemCanceled(msg.sender, nftAddress, tokenId);
-//     }
-
-//     /*
-//      * @notice Method for buying listing
-//      * @notice The owner of an NFT could unapprove the marketplace,
-//      * which would cause this function to fail
-//      * Ideally you'd also have a `createOffer` functionality.
-//      * @param nftAddress Address of NFT contract
-//      * @param tokenId Token ID of NFT
-//      */
-
-//     //cross purchase
-//     function buyItem(address nftAddress, uint256 tokenId)
-//         external
-//         payable
-//         isListed(nftAddress, tokenId)
-//         // isNotOwner(nftAddress, tokenId, msg.sender)
-//         nonReentrant
-//     {
-//         // Challenge - How would you refactor this contract to take:
-//         // 1. Abitrary tokens as payment? (HINT - Chainlink Price Feeds!)
-//         // 2. Be able to set prices in other currencies?
-//         // 3. Tweet me @PatrickAlphaC if you come up with a solution!
-//         Listing memory listedItem = s_listings[nftAddress][tokenId];
-//         if (msg.value < listedItem.price) {
-//             revert PriceNotMet(nftAddress, tokenId, listedItem.price);
-//         }
-//         s_proceeds[listedItem.seller] += msg.value;
-//         // Could just send the money...
-//         // https://fravoll.github.io/solidity-patterns/pull_over_push.html
-//         delete (s_listings[nftAddress][tokenId]);
-//         IERC721(nftAddress).safeTransferFrom(listedItem.seller, msg.sender, tokenId);
-//         emit ItemBought(msg.sender, nftAddress, tokenId, listedItem.price);
-//     }
-
-//     /*
-//      * @notice Method for updating listing
-//      * @param nftAddress Address of NFT contract
-//      * @param tokenId Token ID of NFT
-//      * @param newPrice Price in Wei of the item
-//      */
-//     //cross update listing
-//     function updateListing(
-//         address nftAddress,
-//         uint256 tokenId,
-//         uint256 newPrice
-//     )
-//         external
-//         isListed(nftAddress, tokenId)
-//         nonReentrant
-//         isOwner(nftAddress, tokenId, msg.sender)
-//     {
-//         //We should check the value of `newPrice` and revert if it's below zero (like we also check in `listItem()`)
-//         if (newPrice <= 0) {
-//             revert PriceMustBeAboveZero();
-//         }
-//         s_listings[nftAddress][tokenId].price = newPrice;
-//         emit ItemListed(msg.sender, nftAddress, tokenId, newPrice);
-//     }
-
-//     /*
-//      * @notice Method for withdrawing proceeds from sales
-//      */
-//     //same chain function
-//     function withdrawProceeds() external {
-//         uint256 proceeds = s_proceeds[msg.sender];
-//         if (proceeds <= 0) {
-//             revert NoProceeds();
-//         }
-//         s_proceeds[msg.sender] = 0;
-//         (bool success, ) = payable(msg.sender).call{value: proceeds}("");
-//         require(success, "Transfer failed");
-//     }
-
-//     /////////////////////
-//     // Getter Functions //
-//     /////////////////////
-
-//     function getListing(address nftAddress, uint256 tokenId)
-//         external
-//         view
-//         returns (Listing memory)
-//     {
-//         return s_listings[nftAddress][tokenId];
-//     }
-
-//     function getProceeds(address seller) external view returns (uint256) {
-//         return s_proceeds[seller];
-//     }
-
-// }
