@@ -434,7 +434,30 @@ import "@openzeppelin/hardhat-upgrades";
 import "@nomiclabs/hardhat-etherscan";
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.18",
+  solidity: {
+    version: "0.8.18",
+    settings: {
+      evmVersion: process.env.EVM_VERSION || 'london',
+      optimizer: {
+        enabled: true,
+        runs: 200,
+        details: {
+          peephole: true,
+          inliner: true,
+          jumpdestRemover: true,
+          orderLiterals: true,
+          deduplicate: true,
+          cse: true,
+          constantOptimizer: true,
+          yul: true,
+          yulDetails: {
+            stackAllocation: true,
+          },
+        },
+      },
+
+    }
+  },
   networks: {
     sepolia: {
       url: "https://eth-sepolia.g.alchemy.com/v2/s-hdjLqITCIC-0yx948QMzzi7v-43Sss",
