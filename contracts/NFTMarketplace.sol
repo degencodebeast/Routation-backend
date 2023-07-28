@@ -16,15 +16,6 @@ import "@routerprotocol/evm-gateway-contracts@1.1.11/contracts/IDapp.sol";
 import "@routerprotocol/evm-gateway-contracts@1.1.11/contracts/IGateway.sol";
 import "./ICollection.sol";
 
-// error PriceNotMet(address nftAddress, uint256 tokenId, uint256 price);
-// error ItemNotForSale(address nftAddress, uint256 tokenId);
-// error NotListed(address nftAddress, uint256 tokenId);
-// error AlreadyListed(address nftAddress, uint256 tokenId);
-// error NoProceeds();
-// error NotOwner();
-// error NotApprovedForMarketplace();
-// error PriceMustBeAboveZero();
-
 contract NFTMarketplace is IDapp {
     using Counters for Counters.Counter;
     Counters.Counter private _nftId;
@@ -287,6 +278,8 @@ contract NFTMarketplace is IDapp {
     function crossChainList(
         string calldata destChainId,
         uint256 tokenId,
+        uint256 price,
+        address collectionAddr,
         bytes calldata requestMetaData
     ) public payable {
          require(
@@ -296,9 +289,24 @@ contract NFTMarketplace is IDapp {
         );
 
           require(
-      ownerOf(tokenId) == msg.sender,
+      ICollection(collectionAddr).ownerOf(tokenId) == msg.sender,
       "caller is not the owner"
     );
+
+    bytes memory packet = abi.encode(tokenId, price, collectionAddr);
+    bytes memory requestPacket = abi.encode(
+            ourContractOnChains[destChainId],
+            packet
+        );
+    
+    gatewayContract.iSend{value: msg.value}(
+            1,
+            0,
+            string(""),
+            destChainId,
+            requestMetadata,
+            requestPacket
+        );
     }
 
     function crossChainDelist() public payable {
