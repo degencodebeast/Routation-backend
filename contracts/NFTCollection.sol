@@ -6,7 +6,7 @@ import "@routerprotocol/evm-gateway-contracts/contracts/IGateway.sol";
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+//import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 //import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -29,15 +29,15 @@ contract NFTCollection is ERC721URIStorage, IDapp {
     //Cross-chain NFT Marketplace Allow buying any NFT from any chain and selling 
     //any NFT on any chain. The markets should be focused on natively cross-chain NFTs.
 
-    //mapping(string => uint8) private _hashes;
-    mapping(uint256 => uint8) private _tokenIds;
+    // //mapping(string => uint8) private _hashes;
+    // mapping(uint256 => uint8) private _tokenIds;
 
     // chain type + chain id => address of our contract in string format
     //chain id to nft contract
     mapping(string => string) public ourContractOnChains;
     
   // gas limit required to handle cross-chain request on the destination chain
-  uint64 public _destGasLimit;
+  //uint64 public _destGasLimit;
 
     // transfer params struct where we specify which NFTs should be transferred to
     // the destination chain and to which address
@@ -58,8 +58,8 @@ contract NFTCollection is ERC721URIStorage, IDapp {
     constructor(
         string memory _name,
         string memory _symbol,
-        address payable gatewayAddress,
-        string memory feePayerAddress,
+        address _gatewayAddress,
+        string memory _feePayerAddress,
         uint256 _royalty,
         address _collectionOwner
     ) ERC721(_name, _symbol) {
@@ -67,13 +67,13 @@ contract NFTCollection is ERC721URIStorage, IDapp {
         collectionRoyalty = _royalty;
         collectionOwner = _collectionOwner;
         
-        gatewayContract = IGateway(gatewayAddress);
+        gatewayContract = IGateway(_gatewayAddress);
         owner = msg.sender;
 
         // // minting ourselves some NFTs so that we can test out the contracts
         // _mint(msg.sender, 1, 10, "");
 
-        gatewayContract.setDappMetadata(feePayerAddress);
+        gatewayContract.setDappMetadata(_feePayerAddress);
     }
 
      function get_royalty() public view returns (uint256) {
@@ -95,24 +95,25 @@ contract NFTCollection is ERC721URIStorage, IDapp {
         // address to,
         // uint256 tokenId,
         //string memory assetHash,
-        string memory tokenURI
-    ) external {
+        string memory _tokenURI
+    ) external returns (uint256) {
         require(msg.sender == owner, "only owner");
 
         // _safeMint(to, tokenId);
         // _setTokenURI(tokenId, tokenURI);
         uint256 newTokenId = _tokenIds.current();
         _safeMint(msg.sender, newTokenId);
-        _setTokenURI(newTokenId, tokenURI);
+        _setTokenURI(newTokenId, _tokenURI);
         _tokenIds.increment();
 
-        emit TokenCreated(tokenURI, newTokenId);
+        emit TokenCreated(_tokenURI, newTokenId);
         return newTokenId;
     }
 
-     function mintTo(address receiver, string memory _tokenURI) external returns(uint) {
+     function mintTo(address receiver, string memory _tokenURI) external returns(uint256) {
+        Counters.Counter storage _nextTokenId;
         _nextTokenId.increment();
-        uint currentId = _nextTokenId.current();
+        uint256 currentId = _nextTokenId.current();
         _safeMint(receiver, currentId);
         _setTokenURI(currentId, _tokenURI);
         return(currentId);
@@ -121,7 +122,7 @@ contract NFTCollection is ERC721URIStorage, IDapp {
       function tokenURI(uint256 tokenId)
         public
         view
-        override(ERC721URIStorage, ERC721)
+        override(ERC721URIStorage)
         returns (string memory)
     {
         return super.tokenURI(tokenId);
@@ -129,14 +130,14 @@ contract NFTCollection is ERC721URIStorage, IDapp {
 
     /// @notice function to set the address of our NFT contracts on different chains.
     /// This will help in access control when a cross-chain request is received.
-    /// @param chainId chain Id of the destination chain in string.
-    /// @param contractAddress address of the NFT contract on the destination chain.
+    /// @param chainIds chain Ids of the destination chains in string.
+    /// @param contractAddresses address of the NFT contract on the destination chain.
     function setContractOnChain(
         string[] calldata chainIds,
         string[] calldata contractAddresses
     ) external {
         require(msg.sender == owner, "only owner");
-        ourContractOnChains[chainId] = contractAddress;
+        //ourContractOnChains[chainId] = contractAddress;
 
         require(chainIds.length == contractAddresses.length, "chainIds and contractAddresses arrays length mismatch");
 
@@ -152,7 +153,7 @@ contract NFTCollection is ERC721URIStorage, IDapp {
         gatewayContract = IGateway(gateway);
     }
 
-     function _burn(uint256 tokenId) internal override(ERC721URIStorage, ERC721) {
+     function _burn(uint256 tokenId) internal override(ERC721URIStorage) {
         super._burn(tokenId);
     }
 
@@ -182,13 +183,13 @@ contract NFTCollection is ERC721URIStorage, IDapp {
         );
 
       require(
-      _ownerOf(transferParams.nftId) == msg.sender,
+      _ownerOf(_tokenId) == msg.sender,
       "caller is not the owner"
     );
     TransferParams memory transferParams;
     transferParams.nftId = _tokenId;
     transferParams.recipient = toBytes(_recipient);
-    transferParams.uri = super.tokenURI(tokenId);
+    transferParams.uri = super.tokenURI(_tokenId);
         // burning the NFTs from the address of the user calling _burnBatch function
         _burn(
             transferParams.nftId
@@ -254,11 +255,12 @@ contract NFTCollection is ERC721URIStorage, IDapp {
             packet,
             (TransferParams)
         );
-        safeMint(
+        _safeMint(
             toAddress(transferParams.recipient),
-            transferParams.nftId,
-            transferParams.uri
+            transferParams.nftId
         );
+
+        _setTokenURI(transferParams.nftId, transferParams.uri);
         
         //return abi.encode(srcChainId);
         
@@ -290,6 +292,20 @@ contract NFTCollection is ERC721URIStorage, IDapp {
             srcTokenAddress := mload(add(_bytes, 0x20))
         }
         addr = address(srcTokenAddress);
+    }
+
+    
+    function toBytes(address a) public pure returns (bytes memory b) {
+        assembly {
+            let m := mload(0x40)
+            a := and(a, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
+            mstore(
+                add(m, 20),
+                xor(0x140000000000000000000000000000000000000000, a)
+            )
+            mstore(0x40, add(m, 52))
+            b := m
+        }
     }
 
    

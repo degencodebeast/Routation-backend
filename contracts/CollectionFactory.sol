@@ -48,12 +48,16 @@ contract CollectionFactory {
         string memory collection_image,
         string memory collection_logo,
         string memory collection_description,
-        uint96 royalty
+        uint96 royalty,
+        address _gateWayAddress,
+        string memory _feePayerAddress
     ) public {
         uint256 collectionCount = _collectionId.current();
         NFTCollection new_nft_collection = new NFTCollection(
             collection_name,
             collection_symbol,
+            _gateWayAddress,
+            _feePayerAddress,
             royalty,
             msg.sender
         );

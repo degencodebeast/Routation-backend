@@ -12,8 +12,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./NFTCollection.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-import "@routerprotocol/evm-gateway-contracts@1.1.11/contracts/IDapp.sol";
-import "@routerprotocol/evm-gateway-contracts@1.1.11/contracts/IGateway.sol";
+// import "@routerprotocol/evm-gateway-contracts@1.1.11/contracts/IDapp.sol";
+// import "@routerprotocol/evm-gateway-contracts@1.1.11/contracts/IGateway.sol";
+import "@routerprotocol/evm-gateway-contracts/contracts/IDapp.sol";
+import "@routerprotocol/evm-gateway-contracts/contracts/IGateway.sol";
+
 import "./ICollection.sol";
 
 contract NFTMarketplace is IDapp {
@@ -37,10 +40,9 @@ contract NFTMarketplace is IDapp {
     // gas limit required to handle cross-chain request on the destination chain
     uint64 public _destGasLimit;
 
-       bytes4 immutable CROSS_CHAIN_LIST_SELECTOR =
-        bytes4(keccak256("listTokenRemote(uint256, uint256, address)"));
+       bytes4 immutable CROSS_CHAIN_LIST_SELECTOR = bytes4(keccak256("listTokenRemote(uint256, uint256, address)"));
     bytes4 immutable CROSS_CHAIN_DELIST_SELECTOR =
-        bytes4(keccak256("cancelListingRemote(address, uint256)")); e
+        bytes4(keccak256("cancelListingRemote(address, uint256)"));
     bytes4 immutable CROSS_CHAIN_PURCHASE_SELECTOR =
         bytes4(
             keccak256(
@@ -74,7 +76,7 @@ contract NFTMarketplace is IDapp {
     constructor(
         address getewayAddress,
         string memory feePayerAddress,
-        string memory _chainId,
+        string memory _chainId
     ) {
         chainId = _chainId;
         gatewayContract = IGateway(getewayAddress);
@@ -252,7 +254,7 @@ contract NFTMarketplace is IDapp {
     }
 
     function _mintOnRemote(address _recipient, string memory _tokenURI, address _nftAddress) internal returns (uint) {
-        ICollection(_nftAddress).mintTo(_recipient, _nftAddress);
+        ICollection(_nftAddress).mintTo(_recipient, _tokenURI);
     }
 
     function getLatestIdToListedToken()
@@ -304,7 +306,7 @@ contract NFTMarketplace is IDapp {
             0,
             string(""),
             destChainId,
-            requestMetadata,
+            requestMetaData,
             requestPacket
         );
     }
@@ -339,7 +341,7 @@ contract NFTMarketplace is IDapp {
             0,
             string(""),
             destChainId,
-            requestMetadata,
+            requestMetaData,
             requestPacket
         );
     
@@ -403,7 +405,7 @@ contract NFTMarketplace is IDapp {
             0,
             string(""),
             destChainId,
-            requestMetadata,
+            requestMetaData,
             requestPacket
         );
     }
@@ -411,7 +413,7 @@ contract NFTMarketplace is IDapp {
     function crossChainTransferNft(string calldata destChainId,
         uint256 tokenId,
         NFTCollection collectionAddr,
-        string calldata recipient,
+        address recipient,
         bytes calldata requestMetaData) public payable {
          require(
             keccak256(abi.encodePacked(ourContractOnChains[destChainId])) !=
@@ -468,14 +470,14 @@ contract NFTMarketplace is IDapp {
     
     /// @notice function to set the address of our NFT contracts on different chains.
     /// This will help in access control when a cross-chain request is received.
-    /// @param chainId chain Id of the destination chain in string.
-    /// @param contractAddress address of the NFT contract on the destination chain.
+    /// @param chainIds chain Id of the destination chain in string.
+    /// @param contractAddresses address of the NFT contract on the destination chain.
     function setContractOnChain(
         string[] calldata chainIds,
         string[] calldata contractAddresses
     ) external {
         require(msg.sender == owner, "only owner");
-        ourContractOnChains[chainId] = contractAddress;
+        //ourContractOnChains[chainId] = contractAddress;
 
         require(chainIds.length == contractAddresses.length, "chainIds and contractAddresses arrays length mismatch");
 
@@ -488,9 +490,9 @@ contract NFTMarketplace is IDapp {
     /// @param packet the payload sent by the source chain contract when the request was created.
     /// @param srcChainId chain ID of the source chain in string.
     function iReceive(
-        string memory requestSender,
-        bytes memory packet,
-        string memory srcChainId
+        string calldata requestSender,
+        bytes calldata packet,
+        string calldata srcChainId
     ) external override returns (bytes memory) {
         require(msg.sender == address(gatewayContract), "only gateway");
         require(
@@ -532,7 +534,7 @@ contract NFTMarketplace is IDapp {
     }
 
     function _mintOnChainRemote(bytes calldata _payload) internal {
-        (address recipient, string tokenURI, address collectionAddr) = abi.decode(_payload, (address, string, address));
+        (address recipient, string memory tokenURI, address collectionAddr) = abi.decode(_payload, (address, string, address));
         _mintOnRemote(recipient, tokenURI, collectionAddr);
 
     }
