@@ -38,17 +38,17 @@ contract NFTMarketplace is IDapp {
     uint64 public _destGasLimit;
 
        bytes4 immutable CROSS_CHAIN_LIST_SELECTOR =
-        bytes4(keccak256("listToken(uint256, uint256, address)"));
+        bytes4(keccak256("listTokenRemote(uint256, uint256, address)"));
     bytes4 immutable CROSS_CHAIN_DELIST_SELECTOR =
-        bytes4(keccak256("cancelListing(address, uint256)")); e
+        bytes4(keccak256("cancelListingRemote(address, uint256)")); e
     bytes4 immutable CROSS_CHAIN_PURCHASE_SELECTOR =
         bytes4(
             keccak256(
-                "executeSale(uint256, address)"
+                "executeSaleRemote(uint256, address)"
             )
         ); 
     bytes4 immutable CROSS_CHAIN_MINT_SELECTOR =
-        bytes4(keccak256("_mintOnRemote(address, string, address)"));
+        bytes4(keccak256("_mintOnChainRemote(address, string, address)"));
 
     struct ListedToken {
         uint256 nftId;
@@ -84,7 +84,7 @@ contract NFTMarketplace is IDapp {
         gatewayContract.setDappMetadata(feePayerAddress);
     }
 
-    function ListToken(
+    function listToken(
         uint256 tokenId,
         uint256 price,
         NFTCollection collection
@@ -293,7 +293,7 @@ contract NFTMarketplace is IDapp {
       "caller is not the owner"
     );
 
-    bytes memory packet = abi.encode(tokenId, price, collectionAddr);
+    bytes memory packet = abi.encodeWithSignature("listTokenRemote(uint256, uint256, address)", tokenId, price, collectionAddr);
     bytes memory requestPacket = abi.encode(
             ourContractOnChains[destChainId],
             packet
@@ -309,22 +309,82 @@ contract NFTMarketplace is IDapp {
         );
     }
 
-    function crossChainDelist() public payable {
+    function crossChainDelist(
+        string calldata destChainId,
+        uint256 tokenId,
+        address collectionAddr,
+        bytes calldata requestMetaData
+        ) 
+        public payable {
+        
+          require(
+            keccak256(abi.encodePacked(ourContractOnChains[destChainId])) !=
+                keccak256(abi.encodePacked("")),
+            "contract on dest not set"
+        );
+
+          require(
+      ICollection(collectionAddr).ownerOf(tokenId) == msg.sender,
+      "caller is not the owner"
+    );
+
+     bytes memory packet = abi.encodeWithSignature("cancelListingRemote(address, uint256)", collectionAddr, tokenId);
+    bytes memory requestPacket = abi.encode(
+            ourContractOnChains[destChainId],
+            packet
+        );
+    
+    gatewayContract.iSend{value: msg.value}(
+            1,
+            0,
+            string(""),
+            destChainId,
+            requestMetadata,
+            requestPacket
+        );
     
     }
 
-    function crossChainPurchase() public payable {
+    //need to use voyager to perform a cross chain swap
+    //would implement that later
 
-    }
+    // function crossChainPurchase(
+    //     string calldata destChainId,
+    //     uint256 tokenId,
+    //     uint256 amount,
+    //     address collectionAddr,
+    //     bytes calldata requestMetaData
+    // ) public payable {
 
-    function crossChainPurchaseFromCollection() public payable {
+    //      require(
+    //         keccak256(abi.encodePacked(ourContractOnChains[destChainId])) !=
+    //             keccak256(abi.encodePacked("")),
+    //         "contract on dest not set"
+    //     );
 
-    }
+    //     require(amount >= msg.value, "amount needs to be greater than msg.value");
+
+    //  bytes memory packet = abi.encode(tokenId, collectionAddr);
+    // bytes memory requestPacket = abi.encode(
+    //         ourContractOnChains[destChainId],
+    //         packet
+    //     );
+    
+    // gatewayContract.iSend{value: amount}(
+    //         1,
+    //         0,
+    //         string(""),
+    //         destChainId,
+    //         requestMetadata,
+    //         requestPacket
+    //     );
+    // }
 
     function crosschainMint(
         string calldata destChainId,
         string calldata recipient,
-        string memory _tokenURI
+        string memory _tokenURI,
+        address _nftAddress,
         bytes calldata requestMetaData
     ) public payable {
         require(
@@ -332,7 +392,7 @@ contract NFTMarketplace is IDapp {
                 keccak256(abi.encodePacked("")),
             "contract on dest not set"
         ); 
-    bytes memory packet = abi.encode(recipient, _tokenURI);
+    bytes memory packet = abi.encodeWithSignature("_mintOnChainRemote(address, string, address", recipient, _tokenURI, _nftAddress);
     bytes memory requestPacket = abi.encode(
             ourContractOnChains[destChainId],
             packet
@@ -437,20 +497,54 @@ contract NFTMarketplace is IDapp {
       keccak256(bytes(ourContractOnChains[srcChainId])) ==
         keccak256(bytes(requestSender))
     );
-        // decoding our payload
-        TransferParams memory transferParams = abi.decode(
-            packet,
-            (TransferParams)
-        );
-        safeMint(
-            toAddress(transferParams.recipient),
-            transferParams.nftId,
-            transferParams.uri
-        );
-        
+       
+     bytes calldata payloadNoSig = packet[4:];
+     bytes4 selector = getSelector(packet);
         //return abi.encode(srcChainId);
+       // Do 1 of 2 things:
+        if (selector == CROSS_CHAIN_MINT_SELECTOR) {
+            _mintOnChainRemote(payloadNoSig);
+        } else if (selector == CROSS_CHAIN_LIST_SELECTOR) {
+            listTokenRemote(payloadNoSig);
+        } else if(selector == CROSS_CHAIN_DELIST_SELECTOR) {
+            cancelListingRemote(payloadNoSig);
+        } else if (selector == CROSS_CHAIN_PURCHASE_SELECTOR)
+            executeSaleRemote();
+        else {
+            revert("Invalid payload: no selector match");
+        }
         
     return "";
+    }
+
+    function getSelector(
+        bytes memory _data
+    ) internal pure returns (bytes4 sig) {
+        assembly {
+            sig := mload(add(_data, 32))
+        }
+    }
+
+    function listTokenRemote(bytes calldata _payload) internal {
+       (uint256 tokenId, uint256 price, address collectionAddr) = abi.decode(_payload, (uint256, uint256, address));
+        NFTCollection collection = NFTCollection(collectionAddr);
+        listToken(tokenId, price, collection);
+    }
+
+    function _mintOnChainRemote(bytes calldata _payload) internal {
+        (address recipient, string tokenURI, address collectionAddr) = abi.decode(_payload, (address, string, address));
+        _mintOnRemote(recipient, tokenURI, collectionAddr);
+
+    }
+
+    function cancelListingRemote(bytes calldata _payload) internal {
+        (address collectionAddr, uint256 tokenId) = abi.decode(_payload, (address, uint256));
+        NFTCollection collection = NFTCollection(collectionAddr);
+        cancelListing(collection, tokenId);
+    }
+
+    function executeSaleRemote() public pure returns (string memory message) {
+        message = "You just called the execute sale remote function from another chain";
     }
 
     /// @notice function to handle the acknowledgement received from the destination chain
