@@ -29,7 +29,7 @@ interface ICollection {
         bytes memory requestMetadata
     ) external payable;
 
-    function mintTo(address to, string memory tokenURI) external returns(uint);
+    function mintTo(address to, string memory tokenURI) external returns(uint256);
 
     function _burn(uint256 tokenId) external;
 }

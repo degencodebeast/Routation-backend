@@ -253,8 +253,8 @@ contract NFTMarketplace is IDapp {
         return listPrice;
     }
 
-    function _mintOnRemote(address _recipient, string memory _tokenURI, address _nftAddress) internal returns (uint) {
-        ICollection(_nftAddress).mintTo(_recipient, _tokenURI);
+    function _mintOnRemote(address _recipient, string memory _tokenURI, address _nftAddress) internal returns (uint256 _tokenID) {
+        _tokenID = ICollection(_nftAddress).mintTo(_recipient, _tokenURI);
     }
 
     function getLatestIdToListedToken()

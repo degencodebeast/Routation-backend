@@ -101,6 +101,7 @@ contract NFTCollection is ERC721URIStorage, IDapp {
 
         // _safeMint(to, tokenId);
         // _setTokenURI(tokenId, tokenURI);
+
         uint256 newTokenId = _tokenIds.current();
         _safeMint(msg.sender, newTokenId);
         _setTokenURI(newTokenId, _tokenURI);
@@ -111,11 +112,15 @@ contract NFTCollection is ERC721URIStorage, IDapp {
     }
 
      function mintTo(address receiver, string memory _tokenURI) external returns(uint256) {
-        Counters.Counter storage _nextTokenId;
-        _nextTokenId.increment();
-        uint256 currentId = _nextTokenId.current();
+        //Counters.Counter storage _nextTokenId;
+        // _nextTokenId.increment();
+        // uint256 currentId = _nextTokenId.current();
+
+        uint256 currentId = _tokenIds.current();
         _safeMint(receiver, currentId);
         _setTokenURI(currentId, _tokenURI);
+
+        emit TokenCreated(_tokenURI, currentId);
         return(currentId);
     }
 
