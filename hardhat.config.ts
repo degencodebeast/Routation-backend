@@ -432,6 +432,7 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
 import "@nomiclabs/hardhat-etherscan";
+require("dotenv").config();
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -487,6 +488,13 @@ const config: HardhatUserConfig = {
           "",
       ],
       gasPrice: 11000000000,
+    },
+    goerli: {
+      url: "https://goerli.infura.io/v3/a4812158fbab4a2aaa849e6f4a6dc605",
+      accounts: [
+        process.env.NEXT_PUBLIC_EVM_PRIVATE_KEY ??
+          "",
+      ],
     },
     avalancheFujiTestnet: {
       url: "https://avalanche-fuji-c-chain.publicnode.com	",
