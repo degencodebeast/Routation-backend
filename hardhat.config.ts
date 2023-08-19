@@ -460,48 +460,60 @@ const config: HardhatUserConfig = {
     }
   },
   networks: {
+    hardhat: {
+      chainId: 31337,
+    },
+    localhost: {
+      chainId: 31337,
+    },
     sepolia: {
       url: "https://eth-sepolia.g.alchemy.com/v2/s-hdjLqITCIC-0yx948QMzzi7v-43Sss",
       accounts: [
         "5acc566e889da617b7f8032ed5f745af8ad695ec2f5421b42b09be517067c051" ??
-          "",
+        "",
       ],
+      chainId: 11155111
     },
-    mumbai: {
+    polygonMumbai: {
       url: "https://polygon-mumbai.infura.io/v3/7367c86527024f0daa1d03b7b64faa7d",
       accounts: [
-        "5acc566e889da617b7f8032ed5f745af8ad695ec2f5421b42b09be517067c051" ??
-          "",
+        process.env.NEXT_PUBLIC_EVM_PRIVATE_KEY ??
+        "",
       ],
+      chainId: 80001
     },
     bscTestnet: {
       url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
       accounts: [
         "5acc566e889da617b7f8032ed5f745af8ad695ec2f5421b42b09be517067c051" ??
-          "",
+        "",
       ],
+      chainId: 97
     },
     chiado: {
       url: "https://rpc.chiadochain.net	",
       accounts: [
         "5acc566e889da617b7f8032ed5f745af8ad695ec2f5421b42b09be517067c051" ??
-          "",
+        "",
       ],
+      chainId: 10200,
       gasPrice: 11000000000,
     },
     goerli: {
       url: "https://goerli.infura.io/v3/a4812158fbab4a2aaa849e6f4a6dc605",
       accounts: [
         process.env.NEXT_PUBLIC_EVM_PRIVATE_KEY ??
-          "",
+        "",
       ],
+      chainId: 5
     },
     avalancheFujiTestnet: {
       url: "https://avalanche-fuji-c-chain.publicnode.com	",
       accounts: [
-        "5acc566e889da617b7f8032ed5f745af8ad695ec2f5421b42b09be517067c051" ??
-          "",
+        process.env.NEXT_PUBLIC_EVM_PRIVATE_KEY ??
+        "",
       ],
+      chainId: 43113
     },
   },
   etherscan: {

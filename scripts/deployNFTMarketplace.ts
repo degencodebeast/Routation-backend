@@ -1,5 +1,5 @@
 import { utils, constants, BigNumber, getDefaultProvider, Wallet, ContractFactory, Contract } from 'ethers';
-import { ethers, run} from "hardhat";
+import { ethers, network, run} from "hardhat";
 //import { ethers } from "ethers";
 require("dotenv").config();
 import { wallet } from "../config/constants";
@@ -12,35 +12,44 @@ const goerliMarketplaceAddr = "0x9E1eF5A92C9Bf97460Cd00C0105979153EA45b27"
 const mumbaiMarketplaceAddr = "0xEdbA69884E6d18f75F352dE739B1ab57Cc61b500"
 
 const feePayerAddress = "0x5e869af2Af006B538f9c6D231C31DE7cDB4153be";
+const constructorArgs = []
 
 
-const chainNames = ["Avalanche", "Goerli", "Mumbai"];
+const chainNames = ["Goerli"];
 const chainsInfo: any = [];
 const chains = [
     {
         name: "Avalanche",
         rpc: "https://rpc.ankr.com/avalanche_fuji",
         gateway: "0x94caA85bC578C05B22BDb00E6Ae1A34878f047F7",
-        chainId: 43113
+        chainId: 43113,
+        contractAddr: "0x7F703a941f157211D4B4e0fb28155bCB2E791d16",
+        hreName: "avalancheFujiTestnet"
 
     },
     {
         name: "Arbitrum",
         rpc: "https://goerli-rollup.arbitrum.io/rpc",
         gateway: "0xcAa6223D0d41FB27d6FC81428779751317FC24cB",
-        chainId: 421613
+        chainId: 421613,
+        contractAddr: "",
+        hreName: "arbitrumGoerli"
     },
     {
         name: "Mumbai",
         rpc: "https://polygon-mumbai.g.alchemy.com/v2/Ksd4J1QVWaOJAJJNbr_nzTcJBJU-6uP3",
         gateway: "0x94caA85bC578C05B22BDb00E6Ae1A34878f047F7",
-        chainId: 80001
+        chainId: 80001,
+        contractAddr: "0xEdbA69884E6d18f75F352dE739B1ab57Cc61b500",
+        hreName: "polygonMumbai"
     },
     {
         name: "Goerli",
         rpc: "https://goerli.infura.io/v3/a4812158fbab4a2aaa849e6f4a6dc605",
         gateway: "0x94caA85bC578C05B22BDb00E6Ae1A34878f047F7",
-        chainId: 5
+        chainId: 5,
+        contractAddr: "0x9E1eF5A92C9Bf97460Cd00C0105979153EA45b27",
+        hreName: "goerli"
     }
 ]
 
@@ -56,7 +65,7 @@ export async function main() {
             }
         });
 
-        console.log(`Deploying [${chainName}]`);
+        //console.log(`Deploying [${chainName}]`);
         //promises.push(deploy(chainInfo, wallet));
 
         // //const estimatedGas: any = await estimateGas(GovernanceToken, chainInfo, wallet);
@@ -66,7 +75,12 @@ export async function main() {
         // const jsGasLimit = bigNumber.toNumber();
         // console.log(jsGasLimit)
 
-        await deployMarketplace(chainInfo, wallet, 6000000);
+        //await deployMarketplace(chainInfo, wallet, 6000000);
+        const chainID = network.config.chainId;
+        if (chainID != 31337) {
+            await verifyContract(chainInfo)
+        }
+        
         // cnIndex += 1;
     }
 }
@@ -80,6 +94,26 @@ async function deployMarketplace(chain: any, wallet: any, _gasLimit: any) {
     await contract.deployed();
     console.log(`The NFT Marketplace for ${chain.name} has been deployed at ${contract.address}`);
     
+}
+
+
+async function verifyContract(chain: any) {
+    
+    console.log(`Verifying NFT Marketplace contract for ${chain.name}...`);  
+
+    try {
+        await run("verify:verify", {
+            address: chain.contractAddr,
+            constructorArguments: [chain.gateway, feePayerAddress, chain.chainId],
+        });
+        //console.log(`contract for ${chain.name} verified`);
+    } catch (e: any) {
+        if (e.message.toLowerCase().includes("already verified")) {
+            console.log("Already verified!");
+        } else {
+            console.log(e);
+        }
+    }
 }
 
 
